@@ -36,35 +36,46 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 double hsb[9];
 
 //////////////////////////// User Control Stuff ////////////////////////////
-int but_pins[9] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+int but_pins[9] = {3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 bool past_but_vals[9];
 bool but_vals[9];
 
-int pot_pins[9] = {};
-int pot_vals[9];
-int past_pot_vals[9];
+// TODO, need to implement to analog channel expander...
+int pot_pins[8] = {A0, A1, A2, A3, A4, A5, A6, A7};
+int pot_vals[8];
+int past_pot_vals[8];
 
-#define USER_CONTROL_MODE 0
-#define GRADUAL_FADE_MODE 1
+#define STATIC_COLOR_MODE       0
+#define GRADUAL_FADE_MODE       1
+#define THEATURE_CHASE_MODE     2
+#define RAINBOW_MODE            3
+#define THEATURE_CHASE_RAINBOW_MODE  4
 
 int mode = 0;
 
 void readUserControls() {
     for (int i = 0; i < 9; i++){
         past_but_vals[i] = but_vals[i];
-        past_pot_vals[i] = pot_vals[i];
 
         but_vals[i] = digitalRead(but_pins[i]);
-        pot_vals[i] = analogRead(pot_pins[i]);
-        hsb[i] = pot_vals[i]/1024;
+
+        if (i < 8) {
+          past_pot_vals[i] = pot_vals[i];
+          pot_vals[i] = analogRead(pot_pins[i]);
+          hsb[i] = (double)pot_vals[i]/1024.0;
+        }
     }
     // determine what the operating mode is
     bool mode_changed = false;
     for (int i = 0; i < 9; i++) {
-        if (digitalRead(but_pins[i] == LOW)) {
+        if (but_vals[i] == 0) {
+            if (mode != i + 1) {
             mode = i + 1;
             mode_changed = true;
+            Serial.print("Mode changed to: ");
+            Serial.println(mode);
+          }  
         }
     }
     if (mode_changed == false){
@@ -75,30 +86,42 @@ void readUserControls() {
 void printValues() {
     Serial.println("hsb values:");
     Serial.print(hsb[0]);
-    Serial.print("/t");
+    Serial.print("\t");
     Serial.print(hsb[1]);
-    Serial.print("/t");
-    Serial.println(hsb[2]);
+    Serial.print("\t");
+    Serial.print(hsb[2]);
+    Serial.print("\t");
     Serial.print(hsb[3]);
-    Serial.print("/t");
+    Serial.print("\t");
     Serial.print(hsb[4]);
-    Serial.print("/t");
-    Serial.println(hsb[5]);
+    Serial.print("\t");
+    Serial.print(hsb[5]);
+    Serial.print("\t");
     Serial.print(hsb[6]);
-    Serial.print("/t");
+    Serial.print("\t");
     Serial.print(hsb[7]);
-    Serial.print("/t");
-    Serial.println(hsb[8]);
+    Serial.print("\t");
+    Serial.print(hsb[8]);
+    Serial.print("mode: ");
+    Serial.println(mode);
 }
 
 // setup() function -- runs once at startup --------------------------------
 
 void setup() {
+  Serial.begin(57600);
+  Serial.println("starting setup loop");
   // setup the user controls
   for (int i = 0; i < 9; i++) {
       pinMode(but_pins[i], INPUT_PULLUP);
-      pinMode(pot_pins[i], INPUT);
+      if (i < 8) {
+        pinMode(pot_pins[i], INPUT);
+      }
   }
+  delay(100);
+  readUserControls();
+  printValues();
+  delay(100);
   // These lines are specifically to support the Adafruit Trinket 5V 16 MHz.
   // Any other board, you can remove this part (but no harm leaving it):
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
@@ -108,7 +131,8 @@ void setup() {
 
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+  strip.setBrightness(255); // Set BRIGHTNESS to about 1/5 (max = 255)
+  Serial.println("Finished the setup loop");
 }
 
 
@@ -116,18 +140,19 @@ void setup() {
 
 void loop() {
   readUserControls();
-  // Fill along the length of the strip in various colors...
-  colorWipe(strip.Color(255,   0,   0), 50); // Red
-  colorWipe(strip.Color(  0, 255,   0), 50); // Green
-  colorWipe(strip.Color(  0,   0, 255), 50); // Blue
-
-  // Do a theater marquee effect in various colors...
-  theaterChase(strip.Color(127, 127, 127), 50); // White, half brightness
-  theaterChase(strip.Color(127,   0,   0), 50); // Red, half brightness
-  theaterChase(strip.Color(  0,   0, 127), 50); // Blue, half brightness
-
-  rainbow(10);             // Flowing rainbow cycle along the whole strip
-  theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
+  printValues();
+  if (mode == STATIC_COLOR_MODE) {
+    Serial.println("STATIC_COLOR_MODE");
+    colorWipe(strip.Color(hsb[0]*255, hsb[1]*255, hsb[2]*255), 0);
+  } else if (mode == THEATURE_CHASE_MODE) {
+    theaterChase(strip.Color(hsb[0]*255, hsb[1]*255, hsb[2]*255), 255);;
+    Serial.println("THEATURE_CHASE_MODE");
+  } else if (mode == RAINBOW_MODE) {
+    Serial.println("RAINBOW_MODE");
+    rainbow(hsb[0]*255);             // Flowing rainbow cycle along the whole strip
+  } else if (mode == THEATURE_CHASE_RAINBOW_MODE) {
+    theaterChaseRainbow(hsb[0]*255);
+  }
 }
 
 
