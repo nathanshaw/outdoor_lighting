@@ -33,10 +33,72 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 
+double hsb[9];
+
+//////////////////////////// User Control Stuff ////////////////////////////
+int but_pins[9] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+
+bool past_but_vals[9];
+bool but_vals[9];
+
+int pot_pins[9] = {};
+int pot_vals[9];
+int past_pot_vals[9];
+
+#define USER_CONTROL_MODE 0
+#define GRADUAL_FADE_MODE 1
+
+int mode = 0;
+
+void readUserControls() {
+    for (int i = 0; i < 9; i++){
+        past_but_vals[i] = but_vals[i];
+        past_pot_vals[i] = pot_vals[i];
+
+        but_vals[i] = digitalRead(but_pins[i]);
+        pot_vals[i] = analogRead(pot_pins[i]);
+        hsb[i] = pot_vals[i]/1024;
+    }
+    // determine what the operating mode is
+    bool mode_changed = false;
+    for (int i = 0; i < 9; i++) {
+        if (digitalRead(but_pins[i] == LOW)) {
+            mode = i + 1;
+            mode_changed = true;
+        }
+    }
+    if (mode_changed == false){
+        mode = 0;
+    }
+}
+
+void printValues() {
+    Serial.println("hsb values:");
+    Serial.print(hsb[0]);
+    Serial.print("/t");
+    Serial.print(hsb[1]);
+    Serial.print("/t");
+    Serial.println(hsb[2]);
+    Serial.print(hsb[3]);
+    Serial.print("/t");
+    Serial.print(hsb[4]);
+    Serial.print("/t");
+    Serial.println(hsb[5]);
+    Serial.print(hsb[6]);
+    Serial.print("/t");
+    Serial.print(hsb[7]);
+    Serial.print("/t");
+    Serial.println(hsb[8]);
+}
 
 // setup() function -- runs once at startup --------------------------------
 
 void setup() {
+  // setup the user controls
+  for (int i = 0; i < 9; i++) {
+      pinMode(but_pins[i], INPUT_PULLUP);
+      pinMode(pot_pins[i], INPUT);
+  }
   // These lines are specifically to support the Adafruit Trinket 5V 16 MHz.
   // Any other board, you can remove this part (but no harm leaving it):
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
@@ -53,6 +115,7 @@ void setup() {
 // loop() function -- runs repeatedly as long as board is on ---------------
 
 void loop() {
+  readUserControls();
   // Fill along the length of the strip in various colors...
   colorWipe(strip.Color(255,   0,   0), 50); // Red
   colorWipe(strip.Color(  0, 255,   0), 50); // Green
